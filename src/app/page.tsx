@@ -1,13 +1,8 @@
-"use client";
-
-import Image from "next/image";
-import { useState } from "react";
-
 export default function Home() {
   // This would need to be converted to a client component if you want state
   // For now, I'll show the structure with commented state logic
   
-  const addToSlackUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,chat:write.public&redirect_uri=${encodeURIComponent(process.env.NEXTAUTH_URL + '/api/auth/callback')}`;
+  // const addToSlackUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,chat:write.public&redirect_uri=${encodeURIComponent(process.env.NEXTAUTH_URL + '/api/auth/callback')}`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 flex items-center justify-center p-4">
@@ -17,7 +12,7 @@ export default function Home() {
       
       {/* Dev mode toggle - would need client component for state */}
       
-      <div className="absolute top-6 right-6 z-10">
+      {/* <div className="absolute top-6 right-6 z-10">
         <label className="flex items-center gap-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl px-4 py-2 cursor-pointer hover:bg-white/10 transition-all">
           <span className="text-white/70 text-sm font-medium">Dev Mode</span>
           <div className="relative">
@@ -27,7 +22,7 @@ export default function Home() {
             </div>
           </div>
         </label>
-      </div>
+      </div> */}
      
 
       <div className="relative max-w-4xl mx-auto text-center">
@@ -105,7 +100,7 @@ export default function Home() {
 
           {/* Status text */}
           <p className="text-white/40 text-sm mt-6">
-            We're putting the finishing touches on your experience
+            Trying my best to get this ready for you.
           </p>
 
           {/* Trust indicators */}

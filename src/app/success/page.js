@@ -59,7 +59,7 @@ function SuccessContent() {
           {/* Subtitle */}
           <p className="text-white/60 text-lg mb-8 leading-relaxed">
             TLDR Newsletter Bot is being prepared for <span className="text-white font-semibold">{team || 'your workspace'}</span>.
-            <br />We're putting the finishing touches on your experience.
+            <br /> Trying my best to get it ready for you!
           </p>
 
           {/* Feature cards */}
