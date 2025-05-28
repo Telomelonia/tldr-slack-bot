@@ -17,11 +17,11 @@ export default function Home() {
           className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
         >
           <Image
-            width={24}
-            height={24}
+            width={139}
+            height={40}
             src="https://platform.slack-edge.com/img/add_to_slack.png" 
             alt="Add to Slack"
-            className="h-6"
+            className="h-10"
           />
         </a>
       </div>
