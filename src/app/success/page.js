@@ -1,7 +1,8 @@
 'use client';
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export default function Success() {
+function SuccessContent() {
   const searchParams = useSearchParams();
   const team = searchParams.get('team');
 
@@ -19,7 +20,7 @@ export default function Success() {
           Installation Successful! 🎉
         </h1>
         <p className="text-gray-600 mb-6">
-          TLDR Newsletter Bot has been added to <strong>{team}</strong>.
+          TLDR Newsletter Bot has been added to <strong>{team || 'your workspace'}</strong>.
         </p>
         <div className="bg-blue-50 p-4 rounded-lg mb-6">
           <h3 className="font-medium text-blue-900 mb-2">Next Steps:</h3>
@@ -31,5 +32,24 @@ export default function Success() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md mx-auto text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function Success() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <SuccessContent />
+    </Suspense>
   );
 }
