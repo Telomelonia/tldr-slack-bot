@@ -16,7 +16,7 @@ export default function Home() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(59,130,246,0.1),transparent_50%)]"></div>
       
       {/* Dev mode toggle - would need client component for state */}
-      {/* 
+      
       <div className="absolute top-6 right-6 z-10">
         <label className="flex items-center gap-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl px-4 py-2 cursor-pointer hover:bg-white/10 transition-all">
           <span className="text-white/70 text-sm font-medium">Dev Mode</span>
@@ -28,7 +28,7 @@ export default function Home() {
           </div>
         </label>
       </div>
-      */}
+     
 
       <div className="relative max-w-4xl mx-auto text-center">
         {/* Glow effect */}
