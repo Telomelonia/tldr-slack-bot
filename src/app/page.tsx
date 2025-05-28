@@ -16,7 +16,9 @@ export default function Home() {
           href={addToSlackUrl}
           className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
         >
-          <Image 
+          <Image
+            width={24}
+            height={24}
             src="https://platform.slack-edge.com/img/add_to_slack.png" 
             alt="Add to Slack"
             className="h-6"
