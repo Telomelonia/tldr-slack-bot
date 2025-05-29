@@ -1,6 +1,7 @@
 export default function Home() {
-  // Construct the Slack OAuth URL
-  const addToSlackUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,chat:write.public&redirect_uri=${encodeURIComponent(process.env.NEXTAUTH_URL + 'api/auth/callback')}`;
+  // Construct the Slack OAuth URL - using environment variable
+  const redirectUri = process.env.NEXTAUTH_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  const addToSlackUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,chat:write.public&redirect_uri=${encodeURIComponent(redirectUri + '/api/auth/callback')}`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 flex items-center justify-center p-4">
@@ -15,8 +16,8 @@ export default function Home() {
         <div className="relative bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-3xl p-16 shadow-2xl">
           {/* Status indicator */}
           <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-            <span className="text-green-400 text-sm font-semibold tracking-wide uppercase">Ready for Beta</span>
+            <div className="w-3 h-3 bg-yellow-300 rounded-full animate-pulse"></div>
+            <span className="text-yellow-200 text-sm font-semibold tracking-wide uppercase">Work In Progress</span>
           </div>
 
           {/* Logo/Icon */}
@@ -85,7 +86,7 @@ export default function Home() {
 
           {/* Status text */}
           <p className="text-white/40 text-sm mt-6">
-            Ready for beta testing • Free during preview period
+            Beta testing • Free
           </p>
 
           {/* Trust indicators */}
