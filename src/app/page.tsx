@@ -1,8 +1,6 @@
 export default function Home() {
-  // This would need to be converted to a client component if you want state
-  // For now, I'll show the structure with commented state logic
-  
-  // const addToSlackUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,chat:write.public&redirect_uri=${encodeURIComponent(process.env.NEXTAUTH_URL + '/api/auth/callback')}`;
+  // Construct the Slack OAuth URL
+  const addToSlackUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,chat:write.public&redirect_uri=${encodeURIComponent(process.env.NEXTAUTH_URL + '/api/auth/callback')}`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 flex items-center justify-center p-4">
@@ -10,21 +8,6 @@ export default function Home() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.1),transparent_50%)]"></div>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(59,130,246,0.1),transparent_50%)]"></div>
       
-      {/* Dev mode toggle - would need client component for state */}
-      
-      {/* <div className="absolute top-6 right-6 z-10">
-        <label className="flex items-center gap-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl px-4 py-2 cursor-pointer hover:bg-white/10 transition-all">
-          <span className="text-white/70 text-sm font-medium">Dev Mode</span>
-          <div className="relative">
-            <input type="checkbox" className="sr-only" />
-            <div className="w-11 h-6 bg-white/20 rounded-full">
-              <div className="w-4 h-4 bg-white rounded-full shadow-lg transform translate-x-1 mt-1 transition-transform"></div>
-            </div>
-          </div>
-        </label>
-      </div> */}
-     
-
       <div className="relative max-w-4xl mx-auto text-center">
         {/* Glow effect */}
         <div className="absolute -inset-8 bg-gradient-to-r from-violet-600/20 via-blue-600/20 to-violet-600/20 rounded-3xl blur-2xl"></div>
@@ -32,8 +15,8 @@ export default function Home() {
         <div className="relative bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-3xl p-16 shadow-2xl">
           {/* Status indicator */}
           <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="w-3 h-3 bg-amber-400 rounded-full animate-pulse"></div>
-            <span className="text-amber-400 text-sm font-semibold tracking-wide uppercase">Work in Progress</span>
+            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+            <span className="text-green-400 text-sm font-semibold tracking-wide uppercase">Ready for Beta</span>
           </div>
 
           {/* Logo/Icon */}
@@ -90,17 +73,19 @@ export default function Home() {
           </div>
 
           {/* CTA Button */}
-          <button
-            disabled={true}
-            className="inline-flex items-center gap-3 px-10 py-5 bg-white/10 text-white/50 cursor-not-allowed border border-white/20 rounded-xl font-semibold text-lg transition-all"
+          <a
+            href={addToSlackUrl}
+            className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-violet-500/25 transform hover:scale-105"
           >
-            <div className="w-6 h-6 border-2 border-white/30 border-t-white/60 rounded-full animate-spin"></div>
-            Coming Soon to Slack
-          </button>
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52-2.523A2.528 2.528 0 0 1 5.042 10.12h2.717v2.542H5.042a2.528 2.528 0 0 1-2.52 2.503Zm6.906-6.218a2.528 2.528 0 0 1-2.52-2.523A2.528 2.528 0 0 1 11.948 4h.023a2.528 2.528 0 0 1 2.517 2.523v2.542h-2.54V8.947Zm2.54 1.15a2.528 2.528 0 0 1 2.517-2.523A2.528 2.528 0 0 1 19.525 10.1a2.528 2.528 0 0 1-2.52 2.523h-2.517V10.1Zm-6.906 6.218a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 2.542 16.3a2.528 2.528 0 0 1 2.52-2.523h2.52v2.542Zm6.906-6.218a2.528 2.528 0 0 1 2.517 2.523A2.528 2.528 0 0 1 14.488 15.1a2.528 2.528 0 0 1-2.52-2.523v-2.523h2.517v2.523Z"/>
+            </svg>
+            Add to Slack
+          </a>
 
           {/* Status text */}
           <p className="text-white/40 text-sm mt-6">
-            Trying my best to get this ready for you.
+            Ready for beta testing • Free during preview period
           </p>
 
           {/* Trust indicators */}
