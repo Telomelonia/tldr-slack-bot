@@ -144,59 +144,155 @@ function formatForSlack(parsedData) {
 
 // Send to individual team (adapted from your PipeDream Slack code)
 async function sendTLDRToTeam(team, content) {
-  const { main_message, thread_replies } = content;
-  
-  // Send main message
-  const mainResponse = await fetch('https://slack.com/api/chat.postMessage', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${team.bot_token}`, // Different token per team
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      channel: team.channel_id || '#general', // Different channel per team
-      text: main_message,
-      unfurl_links: false,
-      unfurl_media: false,
-      username: "TLDR Newsletter Bot"
-    })
-  });
+  try {
+    // Get channels where bot is a member
+    const botChannels = await getBotMemberChannels(team.bot_token);
+    
+    if (botChannels.length === 0) {
+      console.log(`⚠️ Bot not in any channels for ${team.team_name} - skipping`);
+      return { success: false, reason: 'Bot not invited to any channels' };
+    }
 
-  const mainData = await mainResponse.json();
-  
-  if (!mainData.ok) {
-    throw new Error(`Slack API error: ${mainData.error}`);
-  }
+    // Use stored channel_id if available, otherwise use first available channel
+    let targetChannel = team.channel_id;
+    
+    if (!targetChannel || !botChannels.find(c => c.id === targetChannel)) {
+      // Bot not in stored channel (or no stored channel), use first available
+      targetChannel = botChannels[0].id;
+      
+      // Update database with active channel
+      await supabase
+        .from('teams')
+        .update({ 
+          channel_id: targetChannel,
+          channel_name: botChannels[0].name 
+        })
+        .eq('team_id', team.team_id);
+      
+      console.log(`📍 Using channel #${botChannels[0].name} for ${team.team_name}`);
+    }
 
-  const messageTs = mainData.ts;
-  
-  // Send thread replies (same pattern as your PipeDream code)
-  for (let i = 0; i < thread_replies.length; i++) {
-    const threadResponse = await fetch('https://slack.com/api/chat.postMessage', {
+    // Send main message
+    const mainResponse = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${team.bot_token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        channel: team.channel_id || '#general',
-        text: thread_replies[i],
-        thread_ts: messageTs,
+        channel: targetChannel,
+        text: content.main_message,
         unfurl_links: false,
         unfurl_media: false,
         username: "TLDR Newsletter Bot"
       })
     });
 
-    const threadData = await threadResponse.json();
+    const mainData = await mainResponse.json();
     
-    if (!threadData.ok) {
-      console.log(`Thread reply ${i + 1} failed:`, threadData.error);
+    if (!mainData.ok) {
+      // If posting failed, try other channels bot is in
+      if (mainData.error === 'not_in_channel' && botChannels.length > 1) {
+        console.log(`Trying alternative channel for ${team.team_name}`);
+        
+        for (const channel of botChannels.slice(1)) {
+          const retryResponse = await fetch('https://slack.com/api/chat.postMessage', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${team.bot_token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              channel: channel.id,
+              text: content.main_message,
+              unfurl_links: false,
+              unfurl_media: false,
+              username: "TLDR Newsletter Bot"
+            })
+          });
+
+          const retryData = await retryResponse.json();
+          if (retryData.ok) {
+            // Update successful channel
+            await supabase
+              .from('teams')
+              .update({ 
+                channel_id: channel.id,
+                channel_name: channel.name 
+              })
+              .eq('team_id', team.team_id);
+            
+            console.log(`✅ Posted to #${channel.name} for ${team.team_name}`);
+            await sendThreadReplies(team.bot_token, channel.id, retryData.ts, content.thread_replies);
+            return { success: true, channel: channel.name };
+          }
+        }
+      }
+      
+      throw new Error(`Slack API error: ${mainData.error}`);
+    }
+
+    // Send thread replies
+    await sendThreadReplies(team.bot_token, targetChannel, mainData.ts, content.thread_replies);
+    
+    console.log(`✅ Successfully posted to ${team.team_name}`);
+    return { success: true };
+
+  } catch (error) {
+    console.error(`❌ Failed to post to ${team.team_name}:`, error);
+    throw error;
+  }
+}
+
+// Get channels where bot is actually a member
+async function getBotMemberChannels(botToken) {
+  try {
+    const response = await fetch('https://slack.com/api/users.conversations?types=public_channel,private_channel&limit=200', {
+      headers: {
+        'Authorization': `Bearer ${botToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    
+    if (data.ok) {
+      // Filter to channels where bot can post
+      return data.channels.filter(channel => 
+        !channel.is_archived && // Not archived
+        channel.is_member // Bot is a member
+      );
     }
     
-    // Delay between messages (same as your code)
-    if (i < thread_replies.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
+    return [];
+  } catch (error) {
+    console.error('Error getting bot channels:', error);
+    return [];
+  }
+}
+
+// Helper function for thread replies
+async function sendThreadReplies(botToken, channelId, threadTs, threadReplies) {
+  if (!threadReplies || threadReplies.length === 0) return;
+
+  for (let i = 0; i < threadReplies.length; i++) {
+    await fetch('https://slack.com/api/chat.postMessage', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${botToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        channel: channelId,
+        text: threadReplies[i],
+        thread_ts: threadTs,
+        unfurl_links: false,
+        unfurl_media: false,
+        username: "TLDR Newsletter Bot"
+      })
+    });
+    
+    // Small delay between thread messages
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
 }

@@ -34,22 +34,16 @@ export async function GET(request) {
     });
 
     const tokenData = await tokenResponse.json();
-    //debug to see the token data
-    console.log('Slack OAuth tokenData:', JSON.stringify(tokenData, null, 2));
 
-    if (!tokenData.ok) {
-      throw new Error(tokenData.error || 'OAuth exchange failed');
-    }
-
-    // Store team data in database
+    // Store team data WITHOUT channel info - we'll detect it when bot is invited
     const { error: dbError } = await supabase
       .from('teams')
       .upsert({
         team_id: tokenData.team.id,
         team_name: tokenData.team.name,
         bot_token: tokenData.access_token,
-        channel_id: tokenData.incoming_webhook?.channel_id || null,
-        channel_name: tokenData.incoming_webhook?.channel || null,
+        channel_id: null,
+        channel_name: null,
         installed_at: new Date().toISOString(),
         is_active: true
       }, {
@@ -60,7 +54,7 @@ export async function GET(request) {
       throw new Error('Database error: ' + dbError.message);
     }
 
-    // Redirect to success page
+    // Redirect to success page with instructions
     return NextResponse.redirect(`${request.nextUrl.origin}/success?team=${encodeURIComponent(tokenData.team.name)}`);
 
   } catch (error) {
