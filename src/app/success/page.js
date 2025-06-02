@@ -1,11 +1,10 @@
 'use client';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense } from 'react';
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const team = searchParams.get('team');
-  const [devMode, setDevMode] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 flex items-center justify-center p-4">
@@ -65,7 +64,7 @@ function SuccessContent() {
                 </svg>
               </div>
               <h3 className="text-white font-semibold mb-1">Auto-Detection</h3>
-              <p className="text-white/60 text-sm">Bot will post to whichever channel it's invited to</p>
+              <p className="text-white/60 text-sm">Bot will post to whichever channel its invited to</p>
             </div>
             
             <div className="bg-white/[0.03] border border-white/10 rounded-xl p-6 text-left">
@@ -90,13 +89,13 @@ function SuccessContent() {
             <ol className="text-white/70 text-sm space-y-2 list-decimal list-inside">
               <li>Go to the channel where you want TLDR updates</li>
               <li>Type: <code className="bg-white/10 px-2 py-1 rounded">/invite @TLDR Newsletter Bot</code></li>
-              <li>That's it! Daily updates will start tomorrow at 9 AM EST</li>
+              <li>Thats it! Daily updates will start tomorrow at 9 AM EST</li>
             </ol>
           </div>
 
           {/* Status text */}
           <p className="text-white/40 text-sm">
-            Bot will automatically detect and use whichever channel it's invited to
+            Bot will automatically detect and use whichever channel its invited to
           </p>
         </div>
       </div>
@@ -107,7 +106,7 @@ function SuccessContent() {
 // ... rest of component (Loading fallback, etc.)
 export default function Success() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <Suspense>
       <SuccessContent />
     </Suspense>
   );
