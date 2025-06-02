@@ -1,6 +1,5 @@
 export default function Home() {
   // Construct the Slack OAuth URL - using environment variable
-  const redirectUri = process.env.NEXTAUTH_URL || (typeof window !== 'undefined' ? window.location.origin : '');
   const addToSlackUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=chat:write,chat:write.public,incoming-webhook&redirect_uri=${encodeURIComponent(process.env.NEXTAUTH_URL + '/api/auth/callback')}`;
 
   return (
