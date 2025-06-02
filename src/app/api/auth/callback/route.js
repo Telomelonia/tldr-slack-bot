@@ -46,6 +46,10 @@ export async function GET(request) {
         team_id: tokenData.team.id,
         team_name: tokenData.team.name,
         bot_token: tokenData.access_token,
+        channel_id: tokenData.incoming_webhook?.channel_id || null,
+        channel_name: tokenData.incoming_webhook?.channel || null,
+        created_at: new Date().toISOString(),
+        is_active: true
       }, {
         onConflict: 'team_id'
       });
