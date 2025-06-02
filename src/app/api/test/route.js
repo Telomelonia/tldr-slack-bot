@@ -185,15 +185,119 @@ export async function POST(request) {
 }
 
 async function testTLDRContent(teamId) {
-  // Test with mock TLDR content
-  const mockTLDRContent = {
-    main_message: "🧪 *Test TLDR Newsletter - " + new Date().toLocaleDateString() + "*\nThis is a test of the TLDR newsletter bot",
-    thread_replies: [
-      "*🔥 Big Tech & Startups*\n\n• *Test Article 1*\nThis is a test description for the first article.\n\n• *Test Article 2*\nThis is a test description for the second article.\n\n",
-      "*🚀 Science & Futuristic Technology*\n\n• *Test Article 3*\nThis is a test description for the third article.\n\n"
-    ]
-  };
+  try {
+    // Get specific team
+    const { data: team, error } = await supabase
+      .from('teams')
+      .select('*')
+      .eq('team_id', teamId)
+      .single();
+
+    if (error || !team) {
+      return NextResponse.json(
+        { success: false, error: 'Team not found' },
+        { status: 404 }
+      );
+    }
+
+    // Test with mock TLDR content
+    const mockTLDRContent = {
+      main_message: "🧪 *Test TLDR Newsletter - " + new Date().toLocaleDateString() + "*\nThis is a test of the TLDR newsletter bot",
+      thread_replies: [
+        "*🔥 Big Tech & Startups*\n\n• *Test Article 1*\nThis is a test description for the first article.\n\n• *Test Article 2*\nThis is a test description for the second article.\n\n",
+        "*🚀 Science & Futuristic Technology*\n\n• *Test Article 3*\nThis is a test description for the third article.\n\n"
+      ]
+    };
+
+    // Use same sending logic as cron job
+    const result = await sendTestTLDR(team, mockTLDRContent);
+    
+    return NextResponse.json({
+      success: true,
+      team: team.team_name,
+      result
+    });
+
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+// Helper function to send test TLDR
+async function sendTestTLDR(team, content) {
+  // Get channels where bot is a member
+  const channelsResponse = await fetch('https://slack.com/api/users.conversations?types=public_channel,private_channel&limit=200', {
+    headers: {
+      'Authorization': `Bearer ${team.bot_token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  const channelsData = await channelsResponse.json();
   
-  // Same logic as cron job but with test content
-  // ... (implement full message sending with test content)
+  if (!channelsData.ok) {
+    throw new Error(`Failed to get channels: ${channelsData.error}`);
+  }
+
+  const memberChannels = channelsData.channels.filter(channel => 
+    !channel.is_archived && channel.is_member
+  );
+
+  if (memberChannels.length === 0) {
+    throw new Error('Bot is not a member of any channels');
+  }
+
+  const targetChannel = team.channel_id || memberChannels[0].id;
+
+  // Send main message
+  const mainResponse = await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${team.bot_token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      channel: targetChannel,
+      text: content.main_message,
+      unfurl_links: false,
+      unfurl_media: false,
+      username: "TLDR Newsletter Bot"
+    })
+  });
+
+  const mainData = await mainResponse.json();
+  
+  if (!mainData.ok) {
+    throw new Error(`Failed to send message: ${mainData.error}`);
+  }
+
+  // Send thread replies
+  for (const reply of content.thread_replies) {
+    await fetch('https://slack.com/api/chat.postMessage', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${team.bot_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        channel: targetChannel,
+        text: reply,
+        thread_ts: mainData.ts,
+        unfurl_links: false,
+        unfurl_media: false,
+        username: "TLDR Newsletter Bot"
+      })
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  return {
+    success: true,
+    channel: memberChannels.find(c => c.id === targetChannel)?.name,
+    message_ts: mainData.ts
+  };
 }
