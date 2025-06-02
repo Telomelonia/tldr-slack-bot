@@ -34,6 +34,7 @@ export async function GET(request) {
     });
 
     const tokenData = await tokenResponse.json();
+    console.log('Slack OAuth tokenData:', JSON.stringify(tokenData, null, 2));
 
     if (!tokenData.ok) {
       throw new Error(tokenData.error || 'OAuth exchange failed');
