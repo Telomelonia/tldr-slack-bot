@@ -34,6 +34,7 @@ export async function GET(request) {
     });
 
     const tokenData = await tokenResponse.json();
+    //debug to see the token data
     console.log('Slack OAuth tokenData:', JSON.stringify(tokenData, null, 2));
 
     if (!tokenData.ok) {
