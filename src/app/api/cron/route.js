@@ -11,15 +11,34 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const authToken = searchParams.get('auth') || request.headers.get('authorization');
   
-  // SECURITY: Check if request is from Vercel Cron or has valid auth token
-  const isVercelCron = request.headers.get('user-agent')?.includes('vercel');
+  // SECURITY: Multiple ways to authorize cron access
+  const isVercelEnvironment = process.env.VERCEL === '1';
+  const isVercelCron = request.headers.get('user-agent')?.includes('vercel') || 
+                       request.headers.get('user-agent')?.includes('cron') ||
+                       request.headers.get('x-vercel-cron') === '1';
   const hasValidAuth = authToken === process.env.TEST_AUTH_TOKEN;
   
-  if (!isVercelCron && !hasValidAuth) {
+  // Allow if: Vercel environment + no auth token (automatic cron) OR valid auth token (manual)
+  const isAutomaticCron = isVercelEnvironment && !authToken;
+  const isManualTest = hasValidAuth;
+  
+  if (!isAutomaticCron && !isManualTest) {
+    console.log('❌ Unauthorized cron access attempt');
+    console.log('Vercel env:', isVercelEnvironment);
+    console.log('User-Agent:', request.headers.get('user-agent'));
+    console.log('Has auth token:', !!authToken);
+    console.log('Auth valid:', hasValidAuth);
+    
     return NextResponse.json(
       { error: 'Unauthorized - cron job access only' },
       { status: 401 }
     );
+  }
+  
+  if (isAutomaticCron) {
+    console.log('🤖 Automatic Vercel cron execution');
+  } else {
+    console.log('🔐 Manual cron execution with auth token');
   }
   
   console.log('🚀 Daily TLDR job started (webhook version)');
