@@ -15,7 +15,7 @@ export default function Home() {
           {/* Status indicator */}
           <div className="flex items-center justify-center gap-3 mb-8">
             <div className="w-3 h-3 bg-yellow-300 rounded-full animate-pulse"></div>
-            <span className="text-yellow-200 text-sm font-semibold tracking-wide uppercase">Work In Progress</span>
+            <span className="text-yellow-200 text-sm font-semibold tracking-wide uppercase">In Beta Phase</span>
           </div>
 
           {/* Logo/Icon */}
@@ -90,7 +90,6 @@ export default function Home() {
           <p className="text-white/40 text-sm mt-6">
             Beta testing • Free
           </p>
-
           {/* Trust indicators */}
           <div className="flex items-center justify-center gap-8 mt-12 opacity-60">
             <div className="flex items-center gap-2">
@@ -111,6 +110,21 @@ export default function Home() {
               </svg>
               <span className="text-white/60 text-sm">Trusted</span>
             </div>
+          </div>
+          <div className="flex items-center justify-center gap-3 mt-10">
+            <img
+              src="https://github.com/Telomelonia.png"
+              alt="Telomelonia"
+              className="w-10 h-10 rounded-full"
+            />
+            <a
+              href="https://github.com/Telomelonia"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white/60 text-sm hover:text-white transition"
+            >
+              Created by Telomelonia
+            </a>
           </div>
         </div>
       </div>
