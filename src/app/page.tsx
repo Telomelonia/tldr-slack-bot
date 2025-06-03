@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 export default function Home() {
   const addToSlackUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=incoming-webhook,channels:read&redirect_uri=${encodeURIComponent(process.env.NEXTAUTH_URL + '/api/auth/callback')}`;
   
@@ -76,7 +78,7 @@ export default function Home() {
             href={addToSlackUrl}
             className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-violet-500/25 transform hover:scale-105"
           >
-            <img
+            <Image
               src="add_to_slack.png"
               alt="Slack Icon"
               width={24}
@@ -112,7 +114,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center justify-center gap-3 mt-10">
-            <img
+            <Image
               src="https://github.com/Telomelonia.png"
               alt="Telomelonia"
               className="w-10 h-10 rounded-full"

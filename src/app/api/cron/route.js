@@ -18,13 +18,14 @@ export async function GET(request) {
                        request.headers.get('x-vercel-cron') === '1';
   const hasValidAuth = authToken === process.env.TEST_AUTH_TOKEN;
   
-  // Allow if: Vercel environment + no auth token (automatic cron) OR valid auth token (manual)
-  const isAutomaticCron = isVercelEnvironment && !authToken;
+  // Allow if: (Vercel environment OR Vercel cron headers) + no auth token (automatic) OR valid auth token (manual)
+  const isAutomaticCron = (isVercelEnvironment || isVercelCron) && !authToken;
   const isManualTest = hasValidAuth;
   
   if (!isAutomaticCron && !isManualTest) {
     console.log('❌ Unauthorized cron access attempt');
     console.log('Vercel env:', isVercelEnvironment);
+    console.log('Vercel cron headers:', isVercelCron);
     console.log('User-Agent:', request.headers.get('user-agent'));
     console.log('Has auth token:', !!authToken);
     console.log('Auth valid:', hasValidAuth);

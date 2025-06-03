@@ -2,6 +2,7 @@
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -136,7 +137,7 @@ function SuccessContent() {
               href={`slack://open`}
               className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-violet-500/25 transform hover:scale-105"
             >
-              <img
+              <Image
                 src="add_to_slack.png"
                 alt="Slack Icon"
                 width={24}
