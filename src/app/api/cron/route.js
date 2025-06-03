@@ -7,7 +7,21 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-export async function GET() {
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const authToken = searchParams.get('auth') || request.headers.get('authorization');
+  
+  // SECURITY: Check if request is from Vercel Cron or has valid auth token
+  const isVercelCron = request.headers.get('user-agent')?.includes('vercel');
+  const hasValidAuth = authToken === process.env.TEST_AUTH_TOKEN;
+  
+  if (!isVercelCron && !hasValidAuth) {
+    return NextResponse.json(
+      { error: 'Unauthorized - cron job access only' },
+      { status: 401 }
+    );
+  }
+  
   console.log('🚀 Daily TLDR job started (webhook version)');
   
   try {

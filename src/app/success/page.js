@@ -38,7 +38,7 @@ function SuccessContent() {
             <p className="text-white/60 text-lg mb-8 leading-relaxed">
               TLDR Newsletter Bot is now configured for <span className="text-white font-semibold">{team || 'your workspace'}</span>.
               <br />
-              Daily updates will be delivered to <span className="text-emerald-400 font-semibold">#{channel}</span> starting tomorrow at 9 AM JST.
+              Daily updates will be delivered to <span className="text-emerald-400 font-semibold">{channel}</span> starting tomorrow at 9 AM JST.
             </p>
           ) : (
             <p className="text-white/60 text-lg mb-8 leading-relaxed">
@@ -96,7 +96,7 @@ function SuccessContent() {
                   <p>✅ <strong>No additional setup required</strong></p>
                   <p>✅ <strong>Daily updates begin tomorrow at 9 AM JST</strong></p>
                   {channel && (
-                    <p>📍 <strong>Updates will be delivered to #{channel}</strong></p>
+                    <p>📍 <strong>Updates will be delivered to {channel}</strong></p>
                   )}
                 </div>
               </div>
@@ -136,9 +136,13 @@ function SuccessContent() {
               href={`slack://open`}
               className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-violet-500/25 transform hover:scale-105"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52-2.523A2.528 2.528 0 0 1 5.042 10.12h2.717v2.542H5.042a2.528 2.528 0 0 1-2.52 2.503Zm6.906-6.218a2.528 2.528 0 0 1-2.52-2.523A2.528 2.528 0 0 1 11.948 4h.023a2.528 2.528 0 0 1 2.517 2.523v2.542h-2.54V8.947Zm2.54 1.15a2.528 2.528 0 0 1 2.517-2.523A2.528 2.528 0 0 1 19.525 10.1a2.528 2.528 0 0 1-2.52 2.523h-2.517V10.1Zm-6.906 6.218a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 2.542 16.3a2.528 2.528 0 0 1 2.52-2.523h2.52v2.542Zm6.906-6.218a2.528 2.528 0 0 1 2.517 2.523A2.528 2.528 0 0 1 14.488 15.1a2.528 2.528 0 0 1-2.52-2.523v-2.523h2.517v2.523Z"/>
-              </svg>
+              <img
+                src="add_to_slack.png"
+                alt="Slack Icon"
+                width={24}
+                height={24}
+                className="w-6 h-6"
+              />
               Open Slack
             </a>
             
