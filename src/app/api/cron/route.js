@@ -1,4 +1,4 @@
-// /api/cron/route.js - Fixed version with better channel detection
+// /api/cron/route.js - Simplified version with guaranteed channel detection
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import * as cheerio from 'cheerio';
@@ -15,38 +15,38 @@ export async function GET() {
     // 1. Fetch TLDR content
     const tldrContent = await fetchAndCleanTLDR();
     
-    // 2. Get all active teams from database
+    // 2. Get only active teams with valid channels (simplified query)
     const { data: teams, error: teamsError } = await supabase
       .from('teams')
       .select('team_id, team_name, bot_token, channel_id, channel_name')
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .not('channel_id', 'is', null); // Only teams with valid channels
 
     if (teamsError) {
       throw new Error(`Database error fetching teams: ${teamsError.message}`);
     }
 
-    console.log(`📊 Found ${teams?.length || 0} active teams`);
+    console.log(`📊 Found ${teams?.length || 0} active teams with valid channels`);
 
     if (!teams || teams.length === 0) {
       return NextResponse.json({
         success: true,
-        message: 'No active teams found',
+        message: 'No active teams with valid channels found',
         teamsProcessed: 0
       });
     }
 
-    // 3. Send to each team
+    // 3. Send to each team (simplified - no channel detection needed)
     const results = [];
     for (const team of teams) {
       try {
-        const result = await sendTLDRToTeam(team, tldrContent);
+        await sendTLDRToTeam(team, tldrContent);
         results.push({ 
           team: team.team_name, 
           success: true, 
-          channel: result.channel,
-          updated: result.updated 
+          channel: team.channel_name
         });
-        console.log(`✅ Sent to ${team.team_name} in channel #${result.channel}`);
+        console.log(`✅ Sent to ${team.team_name} in channel #${team.channel_name}`);
       } catch (error) {
         results.push({ 
           team: team.team_name, 
@@ -54,6 +54,11 @@ export async function GET() {
           error: error.message 
         });
         console.log(`❌ Failed for ${team.team_name}: ${error.message}`);
+        
+        // If posting failed due to permission issues, mark team as inactive
+        if (error.message.includes('not_in_channel') || error.message.includes('channel_not_found')) {
+          await handleTeamPermissionError(team.team_id, team.team_name);
+        }
       }
       
       // Delay between teams to avoid rate limits
@@ -77,63 +82,12 @@ export async function GET() {
   }
 }
 
-// Send to individual team with improved channel detection
+// Simplified function - no channel detection, just post to known channel
 async function sendTLDRToTeam(team, content) {
+  console.log(`📤 Posting to ${team.team_name} in #${team.channel_name}`);
+  
   try {
-    console.log(`🔍 Processing team: ${team.team_name}`);
-    
-    // Get channels where bot is a member
-    const botChannels = await getBotMemberChannels(team.bot_token);
-    console.log(`📋 Bot is member of ${botChannels.length} channels for ${team.team_name}`);
-    
-    if (botChannels.length === 0) {
-      throw new Error('Bot not invited to any channels. Please invite the bot to a channel first.');
-    }
-
-    // Determine target channel
-    let targetChannel = null;
-    let targetChannelName = null;
-    let channelUpdated = false;
-
-    // Try stored channel first (if exists and bot is still member)
-    if (team.channel_id) {
-      const storedChannel = botChannels.find(c => c.id === team.channel_id);
-      if (storedChannel) {
-        targetChannel = team.channel_id;
-        targetChannelName = storedChannel.name;
-        console.log(`✅ Using stored channel #${targetChannelName} for ${team.team_name}`);
-      } else {
-        console.log(`⚠️ Bot no longer in stored channel ${team.channel_id} for ${team.team_name}`);
-      }
-    }
-
-    // If no valid stored channel, use first available
-    if (!targetChannel) {
-      targetChannel = botChannels[0].id;
-      targetChannelName = botChannels[0].name;
-      channelUpdated = true;
-      
-      console.log(`🔄 Updating to new channel #${targetChannelName} for ${team.team_name}`);
-      
-      // Update database with new channel
-      const { error: updateError } = await supabase
-        .from('teams')
-        .update({ 
-          channel_id: targetChannel,
-          channel_name: targetChannelName,
-          updated_at: new Date().toISOString()
-        })
-        .eq('team_id', team.team_id);
-
-      if (updateError) {
-        console.error(`❌ Failed to update channel for ${team.team_name}:`, updateError);
-        // Continue anyway - posting is more important than DB update
-      } else {
-        console.log(`✅ Updated channel in database for ${team.team_name}`);
-      }
-    }
-
-    // Send main message
+    // Send main message to the known channel
     const mainResponse = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: {
@@ -141,7 +95,7 @@ async function sendTLDRToTeam(team, content) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        channel: targetChannel,
+        channel: team.channel_id,
         text: content.main_message,
         unfurl_links: false,
         unfurl_media: false,
@@ -152,69 +106,23 @@ async function sendTLDRToTeam(team, content) {
     const mainData = await mainResponse.json();
     
     if (!mainData.ok) {
-      // If posting failed, try other channels
-      if (mainData.error === 'not_in_channel' && botChannels.length > 1) {
-        console.log(`🔄 Primary channel failed, trying alternatives for ${team.team_name}`);
-        
-        for (let i = 1; i < botChannels.length; i++) {
-          const altChannel = botChannels[i];
-          
-          const retryResponse = await fetch('https://slack.com/api/chat.postMessage', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${team.bot_token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              channel: altChannel.id,
-              text: content.main_message,
-              unfurl_links: false,
-              unfurl_media: false,
-              username: "TLDR Newsletter Bot"
-            })
-          });
-
-          const retryData = await retryResponse.json();
-          if (retryData.ok) {
-            // Update to successful channel
-            const { error: updateError } = await supabase
-              .from('teams')
-              .update({ 
-                channel_id: altChannel.id,
-                channel_name: altChannel.name,
-                updated_at: new Date().toISOString()
-              })
-              .eq('team_id', team.team_id);
-
-            if (updateError) {
-              console.error(`❌ Failed to update alternative channel:`, updateError);
-            }
-            
-            console.log(`✅ Posted to alternative channel #${altChannel.name} for ${team.team_name}`);
-            await sendThreadReplies(team.bot_token, altChannel.id, retryData.ts, content.thread_replies);
-            
-            return { 
-              success: true, 
-              channel: altChannel.name,
-              updated: true
-            };
-          }
-        }
-      }
-      
-      throw new Error(`Slack API error: ${mainData.error} - ${mainData.error || 'Unknown error'}`);
+      throw new Error(`Slack API error: ${mainData.error}`);
     }
 
     // Send thread replies
     if (content.thread_replies && content.thread_replies.length > 0) {
-      await sendThreadReplies(team.bot_token, targetChannel, mainData.ts, content.thread_replies);
+      await sendThreadReplies(team.bot_token, team.channel_id, mainData.ts, content.thread_replies);
     }
     
-    return { 
-      success: true, 
-      channel: targetChannelName,
-      updated: channelUpdated
-    };
+    // Update last posted timestamp
+    await supabase
+      .from('teams')
+      .update({ 
+        last_posted_at: new Date().toISOString()
+      })
+      .eq('team_id', team.team_id);
+
+    return { success: true };
 
   } catch (error) {
     console.error(`❌ Failed to post to ${team.team_name}:`, error);
@@ -222,47 +130,28 @@ async function sendTLDRToTeam(team, content) {
   }
 }
 
-// Improved function to get channels where bot is actually a member
-async function getBotMemberChannels(botToken) {
+// Handle team permission errors by marking as inactive
+async function handleTeamPermissionError(teamId, teamName) {
   try {
-    console.log('🔍 Fetching bot member channels...');
+    console.log(`⚠️ Marking team ${teamName} as inactive due to permission error`);
     
-    const response = await fetch('https://slack.com/api/users.conversations?types=public_channel,private_channel&limit=200', {
-      headers: {
-        'Authorization': `Bearer ${botToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const { error } = await supabase
+      .from('teams')
+      .update({ 
+        is_active: false,
+        channel_id: null,
+        channel_name: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('team_id', teamId);
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (error) {
+      console.error(`❌ Failed to update team ${teamName}:`, error);
+    } else {
+      console.log(`✅ Team ${teamName} marked as inactive`);
     }
-
-    const data = await response.json();
-    
-    if (!data.ok) {
-      throw new Error(`Slack API error: ${data.error}`);
-    }
-    
-    // Filter to channels where bot can post
-    const validChannels = data.channels.filter(channel => 
-      !channel.is_archived &&  // Not archived
-      channel.is_member &&     // Bot is a member
-      !channel.is_im &&        // Not a direct message
-      !channel.is_mpim         // Not a multi-person direct message
-    );
-
-    console.log(`📋 Found ${validChannels.length} valid channels out of ${data.channels.length} total`);
-    
-    return validChannels.map(channel => ({
-      id: channel.id,
-      name: channel.name,
-      is_private: channel.is_private || false
-    }));
-    
   } catch (error) {
-    console.error('❌ Error getting bot channels:', error);
-    return [];
+    console.error(`❌ Error handling permission error for ${teamName}:`, error);
   }
 }
 
