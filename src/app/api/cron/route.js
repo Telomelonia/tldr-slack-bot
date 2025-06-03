@@ -1,4 +1,3 @@
-// /api/cron/route.js - Simplified version with guaranteed channel detection
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import * as cheerio from 'cheerio';
@@ -9,44 +8,44 @@ const supabase = createClient(
 );
 
 export async function GET() {
-  console.log('🚀 Daily TLDR job started');
+  console.log('🚀 Daily TLDR job started (webhook version)');
   
   try {
     // 1. Fetch TLDR content
     const tldrContent = await fetchAndCleanTLDR();
     
-    // 2. Get only active teams with valid channels (simplified query)
+    // 2. Get active teams with webhooks
     const { data: teams, error: teamsError } = await supabase
       .from('teams')
-      .select('team_id, team_name, bot_token, channel_id, channel_name')
+      .select('team_id, team_name, webhook_url, channel_name')
       .eq('is_active', true)
-      .not('channel_id', 'is', null); // Only teams with valid channels
+      .not('webhook_url', 'is', null);
 
     if (teamsError) {
       throw new Error(`Database error fetching teams: ${teamsError.message}`);
     }
 
-    console.log(`📊 Found ${teams?.length || 0} active teams with valid channels`);
+    console.log(`📊 Found ${teams?.length || 0} active teams with webhooks`);
 
     if (!teams || teams.length === 0) {
       return NextResponse.json({
         success: true,
-        message: 'No active teams with valid channels found',
+        message: 'No active teams with webhooks found',
         teamsProcessed: 0
       });
     }
 
-    // 3. Send to each team (simplified - no channel detection needed)
+    // 3. Send to each team via webhook
     const results = [];
     for (const team of teams) {
       try {
-        await sendTLDRToTeam(team, tldrContent);
+        await sendViaWebhook(team, tldrContent);
         results.push({ 
           team: team.team_name, 
           success: true, 
           channel: team.channel_name
         });
-        console.log(`✅ Sent to ${team.team_name} in channel #${team.channel_name}`);
+        console.log(`✅ Webhook sent to ${team.team_name} in #${team.channel_name}`);
       } catch (error) {
         results.push({ 
           team: team.team_name, 
@@ -54,11 +53,6 @@ export async function GET() {
           error: error.message 
         });
         console.log(`❌ Failed for ${team.team_name}: ${error.message}`);
-        
-        // If posting failed due to permission issues, mark team as inactive
-        if (error.message.includes('not_in_channel') || error.message.includes('channel_not_found')) {
-          await handleTeamPermissionError(team.team_id, team.team_name);
-        }
       }
       
       // Delay between teams to avoid rate limits
@@ -82,38 +76,37 @@ export async function GET() {
   }
 }
 
-// Simplified function - no channel detection, just post to known channel
-async function sendTLDRToTeam(team, content) {
-  console.log(`📤 Posting to ${team.team_name} in #${team.channel_name}`);
+// Send via webhook - much simpler!
+async function sendViaWebhook(team, content) {
+  console.log(`🪝 Sending webhook to ${team.team_name}`);
   
   try {
-    // Send main message to the known channel
-    const mainResponse = await fetch('https://slack.com/api/chat.postMessage', {
+    // Create full message (main + all sections)
+    let fullMessage = content.main_message + '\n\n';
+    
+    if (content.thread_replies && content.thread_replies.length > 0) {
+      fullMessage += content.thread_replies.join('\n\n');
+    }
+
+    // Send via webhook
+    const response = await fetch(team.webhook_url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${team.bot_token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        channel: team.channel_id,
-        text: content.main_message,
+        text: fullMessage,
+        username: "TLDR Newsletter Bot",
+        icon_emoji: ":newspaper:",
         unfurl_links: false,
-        unfurl_media: false,
-        username: "TLDR Newsletter Bot"
+        unfurl_media: false
       })
     });
 
-    const mainData = await mainResponse.json();
-    
-    if (!mainData.ok) {
-      throw new Error(`Slack API error: ${mainData.error}`);
+    if (!response.ok) {
+      throw new Error(`Webhook failed: ${response.status} ${response.statusText}`);
     }
 
-    // Send thread replies
-    if (content.thread_replies && content.thread_replies.length > 0) {
-      await sendThreadReplies(team.bot_token, team.channel_id, mainData.ts, content.thread_replies);
-    }
-    
     // Update last posted timestamp
     await supabase
       .from('teams')
@@ -122,71 +115,9 @@ async function sendTLDRToTeam(team, content) {
       })
       .eq('team_id', team.team_id);
 
-    return { success: true };
-
   } catch (error) {
-    console.error(`❌ Failed to post to ${team.team_name}:`, error);
+    console.error(`❌ Webhook failed for ${team.team_name}:`, error);
     throw error;
-  }
-}
-
-// Handle team permission errors by marking as inactive
-async function handleTeamPermissionError(teamId, teamName) {
-  try {
-    console.log(`⚠️ Marking team ${teamName} as inactive due to permission error`);
-    
-    const { error } = await supabase
-      .from('teams')
-      .update({ 
-        is_active: false,
-        channel_id: null,
-        channel_name: null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('team_id', teamId);
-
-    if (error) {
-      console.error(`❌ Failed to update team ${teamName}:`, error);
-    } else {
-      console.log(`✅ Team ${teamName} marked as inactive`);
-    }
-  } catch (error) {
-    console.error(`❌ Error handling permission error for ${teamName}:`, error);
-  }
-}
-
-// Helper function for thread replies (unchanged)
-async function sendThreadReplies(botToken, channelId, threadTs, threadReplies) {
-  if (!threadReplies || threadReplies.length === 0) return;
-
-  for (let i = 0; i < threadReplies.length; i++) {
-    try {
-      const response = await fetch('https://slack.com/api/chat.postMessage', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${botToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          channel: channelId,
-          text: threadReplies[i],
-          thread_ts: threadTs,
-          unfurl_links: false,
-          unfurl_media: false,
-          username: "TLDR Newsletter Bot"
-        })
-      });
-      
-      const data = await response.json();
-      if (!data.ok) {
-        console.error(`❌ Thread reply ${i + 1} failed:`, data.error);
-      }
-    } catch (error) {
-      console.error(`❌ Thread reply ${i + 1} error:`, error);
-    }
-    
-    // Small delay between thread messages
-    await new Promise(resolve => setTimeout(resolve, 500));
   }
 }
 
