@@ -28,7 +28,7 @@ function SelectChannelContent() {
           setError(data.error || 'Failed to fetch channels');
         }
       } catch (err) {
-        setError('Failed to load channels');
+        setError('Failed to load channels', err);
       } finally {
         setLoading(false);
       }
@@ -62,7 +62,7 @@ function SelectChannelContent() {
         setError(data.error || 'Failed to set channel');
       }
     } catch (err) {
-      setError('Failed to save channel selection');
+      setError('Failed to save channel selection',  err);
     } finally {
       setSubmitting(false);
     }
