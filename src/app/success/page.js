@@ -38,7 +38,7 @@ function SuccessContent() {
             <p className="text-white/60 text-lg mb-8 leading-relaxed">
               TLDR Newsletter Bot is now configured for <span className="text-white font-semibold">{team || 'your workspace'}</span>.
               <br />
-              Daily updates will be delivered to <span className="text-emerald-400 font-semibold">#{channel}</span> starting tomorrow at 9 AM JST.
+              Daily updates will be delivered to <span className="text-emerald-400 font-semibold">{channel}</span> starting tomorrow at 9 AM JST.
             </p>
           ) : (
             <p className="text-white/60 text-lg mb-8 leading-relaxed">
@@ -96,7 +96,7 @@ function SuccessContent() {
                   <p>✅ <strong>No additional setup required</strong></p>
                   <p>✅ <strong>Daily updates begin tomorrow at 9 AM JST</strong></p>
                   {channel && (
-                    <p>📍 <strong>Updates will be delivered to #{channel}</strong></p>
+                    <p>📍 <strong>Updates will be delivered to {channel}</strong></p>
                   )}
                 </div>
               </div>
