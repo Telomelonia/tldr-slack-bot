@@ -188,10 +188,19 @@ function parseTldrNewsletter(htmlContent) {
       const descElem = $article.find('div.newsletter-html').first();
       
       if (titleElem.length && linkElem.length && descElem.length) {
+        const title = titleElem.text().trim();
+        const description = descElem.text().trim();
+
+        // Ignore articles containing "hiring" or "sponsor"
+        if (title.toLowerCase().includes("hiring") || description.toLowerCase().includes("hiring") ||
+            title.toLowerCase().includes("sponsor") || description.toLowerCase().includes("sponsor")) {
+          return;
+        }
+
         sectionArticles.push({
-          title: titleElem.text().trim(),
+          title,
           link: linkElem.attr('href') || '',
-          description: descElem.text().trim()
+          description
         });
       }
     });
@@ -207,6 +216,7 @@ function parseTldrNewsletter(htmlContent) {
     sections: sections
   };
 }
+
 
 function formatForSlack(parsedData) {
   const mainMessage = `*📰 TLDR Newsletter - ${parsedData.date}*\n${parsedData.title}`;
