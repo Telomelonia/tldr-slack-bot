@@ -18,68 +18,57 @@ export async function GET(request) {
                        request.headers.get('x-vercel-cron') === '1';
   const hasValidAuth = authToken === process.env.TEST_AUTH_TOKEN;
   
-  // Allow if: (Vercel environment OR Vercel cron headers) + no auth token (automatic) OR valid auth token (manual)
   const isAutomaticCron = (isVercelEnvironment || isVercelCron) && !authToken;
   const isManualTest = hasValidAuth;
   
   if (!isAutomaticCron && !isManualTest) {
     console.log('❌ Unauthorized cron access attempt');
-    console.log('Vercel env:', isVercelEnvironment);
-    console.log('Vercel cron headers:', isVercelCron);
-    console.log('User-Agent:', request.headers.get('user-agent'));
-    console.log('Has auth token:', !!authToken);
-    console.log('Auth valid:', hasValidAuth);
-    
     return NextResponse.json(
       { error: 'Unauthorized - cron job access only' },
       { status: 401 }
     );
   }
   
-  if (isAutomaticCron) {
-    console.log('🤖 Automatic Vercel cron execution');
-  } else {
-    console.log('🔐 Manual cron execution with auth token');
-  }
-  
-  console.log('🚀 Daily TLDR job started (webhook version)');
+  console.log('🚀 Daily TLDR job started (hybrid threading version)');
   
   try {
     // 1. Fetch TLDR content
     const tldrContent = await fetchAndCleanTLDR();
     
-    // 2. Get active teams with webhooks
+    // 2. Get active teams with bot tokens (hybrid approach)
     const { data: teams, error: teamsError } = await supabase
       .from('teams')
-      .select('team_id, team_name, webhook_url, channel_name')
+      .select('team_id, team_name, bot_token, channel_id, channel_name, webhook_url')
       .eq('is_active', true)
-      .not('webhook_url', 'is', null);
+      .not('bot_token', 'is', null)
+      .not('channel_id', 'is', null);
 
     if (teamsError) {
       throw new Error(`Database error fetching teams: ${teamsError.message}`);
     }
 
-    console.log(`📊 Found ${teams?.length || 0} active teams with webhooks`);
+    console.log(`📊 Found ${teams?.length || 0} active teams with hybrid setup`);
 
     if (!teams || teams.length === 0) {
       return NextResponse.json({
         success: true,
-        message: 'No active teams with webhooks found',
+        message: 'No active teams with hybrid setup found',
         teamsProcessed: 0
       });
     }
 
-    // 3. Send to each team via webhook
+    // 3. Send to each team with threading using bot token
     const results = [];
     for (const team of teams) {
       try {
-        await sendViaWebhook(team, tldrContent);
+        await sendThreadedMessageHybrid(team, tldrContent);
         results.push({ 
           team: team.team_name, 
           success: true, 
-          channel: team.channel_name
+          channel: team.channel_name,
+          method: 'threaded_bot_token'
         });
-        console.log(`✅ Webhook sent to ${team.team_name} in #${team.channel_name}`);
+        console.log(`✅ Threaded message sent to ${team.team_name} in #${team.channel_name}`);
       } catch (error) {
         results.push({ 
           team: team.team_name, 
@@ -90,7 +79,7 @@ export async function GET(request) {
       }
       
       // Delay between teams to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
     return NextResponse.json({
@@ -110,26 +99,21 @@ export async function GET(request) {
   }
 }
 
-// Send via webhook - much simpler!
-async function sendViaWebhook(team, content) {
-  console.log(`🪝 Sending webhook to ${team.team_name}`);
+// HYBRID: Use bot token for threading, but we already know the channel from webhook setup
+async function sendThreadedMessageHybrid(team, content) {
+  console.log(`🧵 Sending threaded message to ${team.team_name} in #${team.channel_name}`);
   
   try {
-    // Create full message (main + all sections)
-    let fullMessage = content.main_message + '\n\n';
-    
-    if (content.thread_replies && content.thread_replies.length > 0) {
-      fullMessage += content.thread_replies.join('\n\n');
-    }
-
-    // Send via webhook
-    const response = await fetch(team.webhook_url, {
+    // 1. Post the main message first using bot token
+    const mainResponse = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${team.bot_token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        text: fullMessage,
+        channel: team.channel_id, // We got this from the webhook setup!
+        text: content.main_message,
         username: "TLDR Newsletter Bot",
         icon_emoji: ":newspaper:",
         unfurl_links: false,
@@ -137,8 +121,49 @@ async function sendViaWebhook(team, content) {
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`Webhook failed: ${response.status} ${response.statusText}`);
+    const mainData = await mainResponse.json();
+    
+    if (!mainData.ok) {
+      throw new Error(`Main message failed: ${mainData.error}`);
+    }
+
+    const mainTimestamp = mainData.ts;
+    console.log(`📨 Main message posted to #${team.channel_name}, ts: ${mainTimestamp}`);
+
+    // 2. Post each section as a threaded reply
+    if (content.thread_replies && content.thread_replies.length > 0) {
+      for (let i = 0; i < content.thread_replies.length; i++) {
+        const reply = content.thread_replies[i];
+        
+        const replyResponse = await fetch('https://slack.com/api/chat.postMessage', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${team.bot_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            channel: team.channel_id,
+            text: reply,
+            thread_ts: mainTimestamp, // This creates the thread!
+            username: "TLDR Newsletter Bot",
+            icon_emoji: ":newspaper:",
+            unfurl_links: false,
+            unfurl_media: false
+          })
+        });
+
+        const replyData = await replyResponse.json();
+        
+        if (!replyData.ok) {
+          console.error(`❌ Thread reply ${i + 1} failed: ${replyData.error}`);
+          // Continue with other replies even if one fails
+        } else {
+          console.log(`📄 Thread reply ${i + 1} posted successfully`);
+        }
+
+        // Small delay between thread replies to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
     }
 
     // Update last posted timestamp
@@ -150,7 +175,7 @@ async function sendViaWebhook(team, content) {
       .eq('team_id', team.team_id);
 
   } catch (error) {
-    console.error(`❌ Webhook failed for ${team.team_name}:`, error);
+    console.error(`❌ Threaded message failed for ${team.team_name}:`, error);
     throw error;
   }
 }
@@ -216,7 +241,6 @@ function parseTldrNewsletter(htmlContent) {
     sections: sections
   };
 }
-
 
 function formatForSlack(parsedData) {
   const mainMessage = `*📰 TLDR Newsletter - ${parsedData.date}*\n${parsedData.title}`;

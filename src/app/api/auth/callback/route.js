@@ -39,24 +39,31 @@ export async function GET(request) {
       throw new Error(`Slack OAuth error: ${tokenData.error}`);
     }
 
-    console.log(`🎯 Webhook OAuth successful for team: ${tokenData.team.name}`);
+    console.log(`🎯 OAuth successful for team: ${tokenData.team.name}`);
 
-    // With incoming-webhook scope, we get webhook info directly
+    // Get BOTH webhook info AND bot token
     const webhookInfo = tokenData.incoming_webhook;
+    const botToken = tokenData.access_token;
     
     if (!webhookInfo || !webhookInfo.url) {
       throw new Error('No webhook information received');
     }
 
-    console.log(`📍 Webhook configured for channel: #${webhookInfo.channel}`);
+    if (!botToken) {
+      throw new Error('No bot token received');
+    }
 
-    // Store team data with webhook info
+    console.log(`📍 Webhook configured for channel: #${webhookInfo.channel}`);
+    console.log(`🤖 Bot token received for threading capability`);
+
+    // Store team data with BOTH webhook info AND bot token
     const { error: dbError } = await supabase
       .from('teams')
       .upsert({
         team_id: tokenData.team.id,
         team_name: tokenData.team.name,
         webhook_url: webhookInfo.url,
+        bot_token: botToken,
         channel_id: webhookInfo.channel_id,
         channel_name: webhookInfo.channel,
         installed_at: new Date().toISOString(),
@@ -69,13 +76,13 @@ export async function GET(request) {
       throw new Error('Database error: ' + dbError.message);
     }
 
-    console.log(`💾 Stored webhook for ${tokenData.team.name} → #${webhookInfo.channel}`);
+    console.log(`💾 Stored webhook + bot token for ${tokenData.team.name} → #${webhookInfo.channel}`);
 
     // Redirect to success page
     const successUrl = new URL(`${request.nextUrl.origin}/success`);
     successUrl.searchParams.set('team', tokenData.team.name);
     successUrl.searchParams.set('channel', webhookInfo.channel);
-    successUrl.searchParams.set('setup', 'webhook_configured');
+    successUrl.searchParams.set('setup', 'hybrid_configured');
 
     return NextResponse.redirect(successUrl.toString());
 
