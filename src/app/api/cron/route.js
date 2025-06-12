@@ -121,15 +121,15 @@ async function sendThreadedMessageHybrid(team, content) {
     const joinData = await joinResponse.json();
     
     if (joinData.ok) {
-      console.log(`✅ Successfully joined #${team.channel_name}`);
+      console.log(`✅ Successfully joined ${team.channel_name}`);
     } else if (joinData.error === 'already_in_channel') {
-      console.log(`ℹ️ Already in channel #${team.channel_name}`);
+      console.log(`ℹ️ Already in channel ${team.channel_name}`);
     } else if (joinData.error === 'channel_not_found') {
-      throw new Error(`Channel #${team.channel_name} not found or bot lacks permission`);
+      throw new Error(`Channel ${team.channel_name} not found or bot lacks permission`);
     } else if (joinData.error === 'is_archived') {
-      throw new Error(`Channel #${team.channel_name} is archived`);
+      throw new Error(`Channel ${team.channel_name} is archived`);
     } else {
-      console.warn(`⚠️ Could not join #${team.channel_name}: ${joinData.error} - will try posting anyway`);
+      console.warn(`⚠️ Could not join ${team.channel_name}: ${joinData.error} - will try posting anyway`);
     }
 
     // Small delay after joining attempt
@@ -157,9 +157,9 @@ async function sendThreadedMessageHybrid(team, content) {
     if (!mainData.ok) {
       // Enhanced error handling
       if (mainData.error === 'not_in_channel') {
-        throw new Error(`Bot not in channel #${team.channel_name}. Please invite the bot to the channel or reinstall with updated permissions.`);
+        throw new Error(`Bot not in channel ${team.channel_name}. Please invite the bot to the channel or reinstall with updated permissions.`);
       } else if (mainData.error === 'channel_not_found') {
-        throw new Error(`Channel #${team.channel_name} not found. Channel may have been deleted or renamed.`);
+        throw new Error(`Channel ${team.channel_name} not found. Channel may have been deleted or renamed.`);
       } else if (mainData.error === 'invalid_auth') {
         throw new Error(`Invalid bot token for ${team.team_name}. Bot may need to be reinstalled.`);
       } else {

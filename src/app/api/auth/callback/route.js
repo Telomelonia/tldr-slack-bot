@@ -79,6 +79,33 @@ export async function GET(request) {
 
     console.log(`💾 Stored webhook + bot token for ${tokenData.team.name} → #${webhookInfo.channel}`);
 
+    // Auto-join the Slack channel
+    if (botToken && webhookInfo.channel_id) {
+      try {
+        // Immediately join the selected channel
+        const joinResponse = await fetch('https://slack.com/api/conversations.join', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${botToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            channel: webhookInfo.channel_id
+          })
+        });
+
+        const joinData = await joinResponse.json();
+        
+        if (joinData.ok) {
+          console.log(`✅ Bot auto-joined #${webhookInfo.channel}`);
+        } else {
+          console.warn(`⚠️ Auto-join failed: ${joinData.error}`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Auto-join error:`, error);
+      }
+    }
+
     // Redirect to success page
     const successUrl = new URL(`${request.nextUrl.origin}/success`);
     successUrl.searchParams.set('team', tokenData.team.name);
