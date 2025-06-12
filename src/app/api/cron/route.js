@@ -4,7 +4,6 @@ import * as cheerio from 'cheerio';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
   process.env.SUPABASE_ANON_KEY
 );
 
@@ -100,12 +99,43 @@ export async function GET(request) {
   }
 }
 
-// HYBRID: Use bot token for threading, but we already know the channel from webhook setup
+// HYBRID: Use bot token for threading with auto-join capability
 async function sendThreadedMessageHybrid(team, content) {
   console.log(`🧵 Sending threaded message to ${team.team_name} in #${team.channel_name}`);
   
   try {
-    // 1. Post the main message first using bot token
+    // 1. First try to join the channel if not already a member
+    console.log(`🤝 Attempting to join channel #${team.channel_name}`);
+    
+    const joinResponse = await fetch('https://slack.com/api/conversations.join', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${team.bot_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        channel: team.channel_id
+      })
+    });
+
+    const joinData = await joinResponse.json();
+    
+    if (joinData.ok) {
+      console.log(`✅ Successfully joined #${team.channel_name}`);
+    } else if (joinData.error === 'already_in_channel') {
+      console.log(`ℹ️ Already in channel #${team.channel_name}`);
+    } else if (joinData.error === 'channel_not_found') {
+      throw new Error(`Channel #${team.channel_name} not found or bot lacks permission`);
+    } else if (joinData.error === 'is_archived') {
+      throw new Error(`Channel #${team.channel_name} is archived`);
+    } else {
+      console.warn(`⚠️ Could not join #${team.channel_name}: ${joinData.error} - will try posting anyway`);
+    }
+
+    // Small delay after joining attempt
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // 2. Post the main message using bot token
     const mainResponse = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: {
@@ -113,7 +143,7 @@ async function sendThreadedMessageHybrid(team, content) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        channel: team.channel_id, // We got this from the webhook setup!
+        channel: team.channel_id,
         text: content.main_message,
         username: "TLDR Newsletter Bot",
         icon_emoji: ":newspaper:",
@@ -125,7 +155,16 @@ async function sendThreadedMessageHybrid(team, content) {
     const mainData = await mainResponse.json();
     
     if (!mainData.ok) {
-      throw new Error(`Main message failed: ${mainData.error}`);
+      // Enhanced error handling
+      if (mainData.error === 'not_in_channel') {
+        throw new Error(`Bot not in channel #${team.channel_name}. Please invite the bot to the channel or reinstall with updated permissions.`);
+      } else if (mainData.error === 'channel_not_found') {
+        throw new Error(`Channel #${team.channel_name} not found. Channel may have been deleted or renamed.`);
+      } else if (mainData.error === 'invalid_auth') {
+        throw new Error(`Invalid bot token for ${team.team_name}. Bot may need to be reinstalled.`);
+      } else {
+        throw new Error(`Main message failed: ${mainData.error}`);
+      }
     }
 
     const mainTimestamp = mainData.ts;

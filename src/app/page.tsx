@@ -1,8 +1,12 @@
 import Image from 'next/image';
 
 export default function Home() {
-  const addToSlackUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=incoming-webhook,chat:write,channels:read&redirect_uri=${encodeURIComponent(process.env.NEXTAUTH_URL + '/api/auth/callback')}`;
-  
+  const addToSlackUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=incoming-webhook,chat:write,channels:read,channels:join&redirect_uri=${encodeURIComponent(process.env.NEXTAUTH_URL + '/api/auth/callback')}`;
+  // This requests:
+  // - incoming-webhook: For channel selection and webhook URL  
+  // - chat:write: For posting threaded messages with bot token
+  // - channels:read: For reading channel info
+  // - channels:join: For automatically joining channels
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 flex items-center justify-center p-4">
       {/* Background effects */}
